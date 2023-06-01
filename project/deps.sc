@@ -66,12 +66,14 @@ object Deps {
   def metabrowseServer         = ivy"org.scalameta:::metabrowse-server:0.2.10"
   def osLib                    = ivy"com.lihaoyi::os-lib:0.9.1"
   def pprint                   = ivy"com.lihaoyi::pprint:0.8.1"
+  def scala3Graal              = ivy"org.virtuslab.scala-cli::scala3-graal:1.0.0"
   def scalafmtDynamic          = ivy"org.scalameta::scalafmt-dynamic:${Versions.scalafmt}"
   def scalameta                = ivy"org.scalameta::scalameta:4.7.8"
   def scalaparse               = ivy"com.lihaoyi::scalaparse:3.0.1"
   def scalapy                  = ivy"me.shadaj::scalapy-core:0.5.2"
   def scalaReflect(sv: String) = ivy"org.scala-lang:scala-reflect:$sv"
   def scalaRx                  = ivy"com.lihaoyi::scalarx:0.4.3"
+  def svm                      = ivy"org.graalvm.nativeimage:svm:$graalVmVersion"
   def scalatags                = ivy"com.lihaoyi::scalatags:0.12.0"
   def slf4jNop                 = ivy"org.slf4j:slf4j-nop:1.7.36"
   def utest                    = ivy"com.lihaoyi::utest:0.8.1"
@@ -115,3 +117,5 @@ object ScalaVersions {
     else if (sv.startsWith("2.13.")) scala213
     else scala3Compat
 }
+
+def graalVmVersion = "22.3.2"
