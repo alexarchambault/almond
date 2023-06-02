@@ -416,7 +416,7 @@ trait Launcher extends AlmondSimpleModule with BootstrapLauncher with PropertyFi
     }
 
     def nativeImageGraalVmJvmId = s"graalvm-java17:$graalVmVersion"
-    def nativeImagePersist      = System.getenv("CI") != null
+    def nativeImagePersist      = true
     def nativeImageCsCommand    = Seq(GetCs.cs(Deps.coursier.dep.version, "2.1.2"))
   }
 
