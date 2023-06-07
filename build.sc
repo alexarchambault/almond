@@ -1033,6 +1033,16 @@ object ci extends Module {
       launchers: _*
     )
   }
+
+  def copyNativeLauncher(directory: String = "artifacts") = T.command {
+    val nativeLauncher = scala.launcher.nativeImage().path
+    Upload.copyLauncher(
+      nativeLauncher,
+      directory,
+      "almond",
+      compress = true
+    )
+  }
 }
 
 object dummy extends Module {
