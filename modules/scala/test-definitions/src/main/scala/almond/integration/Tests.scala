@@ -400,6 +400,7 @@ object Tests {
       scalaCliLauncher().toString,
       "--power",
       "compile",
+      "--server=false",
       "--print-class-path",
       "."
     )
