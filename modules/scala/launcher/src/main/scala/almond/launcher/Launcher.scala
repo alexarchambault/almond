@@ -179,6 +179,7 @@ object Launcher extends CaseApp[LauncherOptions] {
         setDaemon(true)
         override def run(): Unit =
           if (p.isAlive()) {
+            System.err.println("Shutting down underlying kernel")
             p.close()
             val timeout = 500.millis
             if (!p.waitFor(timeout.toMillis)) {
@@ -187,6 +188,7 @@ object Launcher extends CaseApp[LauncherOptions] {
               )
               p.destroyForcibly()
             }
+            System.err.println("Shut down underlying kernel")
           }
       }
     Runtime.getRuntime.addShutdownHook(hook)
