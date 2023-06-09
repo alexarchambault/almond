@@ -264,6 +264,8 @@ class KernelLauncher(
       }
 
       def close(): Unit = {
+        val msg = s"Closing session $this"
+        pprint.err.log(msg)
         conn.close.unsafeRunTimed(2.minutes)(IORuntime.global).getOrElse {
           sys.error("Timeout when closing ZeroMQ connections")
         }
@@ -509,6 +511,8 @@ class KernelLauncher(
       }
 
       def close(): Unit = {
+        val msg = s"Closing runner $this"
+        pprint.err.log(msg)
         sessions.foreach(_.close())
         sessions = Nil
         jupyterDirs.foreach { dir =>
@@ -530,6 +534,7 @@ class KernelLauncher(
               proc.destroyForcibly()
             }
           }
+          pprint.err.log(proc.exitCode())
           proc = null
         }
       }
@@ -544,7 +549,8 @@ class KernelLauncher(
       f(runner0)
     }
     finally
-      runner0.close()
+      if (runner0 != null)
+        runner0.close()
   }
 
 }
