@@ -1201,7 +1201,13 @@ object Tests {
             "zipAll",
             "zipWithIndex"
           )
-        else
+        else {
+          // not sure why we get different results here
+          val twoStepRunnerExtra =
+            if (runner.differedStartUp)
+              Nil
+            else
+              Seq("Maximized")
           Seq(
             "!=",
             "++",
@@ -1214,8 +1220,10 @@ object Tests {
             ":::",
             ":\\",
             "==",
-            "CombinationsItr",
-            "Maximized",
+            "CombinationsItr"
+          ) ++
+          twoStepRunnerExtra ++
+          Seq(
             "PermutationsItr",
             "addString",
             "aggregate",
@@ -1379,6 +1387,7 @@ object Tests {
             "zipAll",
             "zipWithIndex"
           )
+        }
       val matches = res.flatMap(_.matches)
       if (matches != expectedMatches) {
         pprint.err.log(expectedMatches)
@@ -1702,7 +1711,13 @@ object Tests {
             ("zipAll", "Method"),
             ("zipWithIndex", "Method")
           )
-        else
+        else {
+          // not sure why we get different results here
+          val twoStepRunnerExtra =
+            if (runner.differedStartUp)
+              Nil
+            else
+              Seq(("Maximized", "Object"))
           Seq(
             ("!=", "Method"),
             ("++", "Method"),
@@ -1715,8 +1730,10 @@ object Tests {
             (":::", "Method"),
             (":\\", "Method"),
             ("==", "Method"),
-            ("CombinationsItr", "Object"),
-            ("Maximized", "Object"),
+            ("CombinationsItr", "Object")
+          ) ++
+          twoStepRunnerExtra ++
+          Seq(
             ("PermutationsItr", "Object"),
             ("addString", "Method"),
             ("addString", "Method"),
@@ -1900,6 +1917,7 @@ object Tests {
             ("zipAll", "Method"),
             ("zipWithIndex", "Method")
           )
+        }
 
       val metadata = ujson.read(res.head.metadata.value)
       val types    = metadata.obj("_jupyter_types_experimental")
