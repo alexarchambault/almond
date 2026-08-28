@@ -518,18 +518,20 @@ trait JsonApiJackson extends Cross.Module[String] with AlmondModule with AlmondM
   }
 }
 
-trait Echo extends Cross.Module[String] with AlmondModule {
-  def crossScalaVersion = crossValue
+// The echo kernel is a demo kernel, only built and published for Scala 3
+object echo extends AlmondSimpleModule {
+  private def sv   = ScalaVersions.scala3Compat
+  def scalaVersion = sv
   def moduleDeps = Seq(
-    shared.kernel()
+    shared.kernel(sv)
   )
   def mvnDeps = Seq(
     Deps.caseApp
   )
   def propertyFilePath = "almond/echo.properties"
-  object test extends CrossSbtModuleTests with AlmondTestModule {
+  object test extends SbtTests with AlmondTestModule {
     def moduleDeps = super.moduleDeps ++ Seq(
-      shared.test()
+      shared.test(sv)
     )
     // Getting transient errors upon incremental compilation without this
     def scalacOptions = super.scalacOptions
@@ -775,8 +777,6 @@ trait Integration extends SbtModule {
     }
   }
 }
-
-object echo extends Cross[Echo](ScalaVersions.binaries)
 
 object docs extends ScalaModule with AlmondRepositories {
   private def scalaVersion0 = ScalaVersions.scala213
