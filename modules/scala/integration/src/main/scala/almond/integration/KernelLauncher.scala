@@ -73,6 +73,34 @@ object KernelLauncher {
     sys.error("almond.test.cs-launcher Java property not set")
   )
 
+  /** Coursier arguments forcing the Scala artifacts to `scalaVersion`. */
+  def scalaForcedVersionArgs(scalaVersion: String): Seq[String] = {
+    val modules =
+      if (scalaVersion.startsWith("2."))
+        Seq("scala-library", "scala-compiler", "scala-reflect")
+      else
+        Seq("scala-library", "scala3-library_3", "scala3-compiler_3")
+    modules.flatMap(name => Seq("--force-version", s"org.scala-lang:$name:$scalaVersion"))
+  }
+
+  // Where the Ammonite snapshots we depend on live. Spelled as a URL rather than as the
+  // central:maven-snapshots alias, as the coursier embedded in the kernels we launch predates
+  // that alias, and ignores COURSIER_REPOSITORIES altogether when it can't parse it.
+  def mavenSnapshotsRepo = "https://central.sonatype.com/repository/maven-snapshots"
+
+  /** Whether the kernels we launch need the snapshot repository above.
+    *
+    * Set by the build, which only adds that repository to the modules that actually depend on a
+    * snapshot - adding it here when the build didn't would have us hit it for nothing, and hide a
+    * kernel that resolves fine from release repositories only.
+    */
+  lazy val useMavenSnapshots = System.getenv("ALMOND_INTEGRATION_MAVEN_SNAPSHOTS") match {
+    case "true"  => true
+    case "false" => false
+    case null    => sys.error("ALMOND_INTEGRATION_MAVEN_SNAPSHOTS not set")
+    case other   => sys.error(s"Unrecognized ALMOND_INTEGRATION_MAVEN_SNAPSHOTS value '$other'")
+  }
+
   object TmpDir {
 
     private lazy val baseTmpDir = {
@@ -173,6 +201,9 @@ class KernelLauncher(
         val launcher = tmpDir / "launcher.jar"
         (launcher, Nil)
       }
+    val snapshotRepoArgs =
+      if (useMavenSnapshots) Seq("-r", "central:maven-snapshots")
+      else Nil
     val repoArgs = Seq(
       "--no-default",
       "-r",
@@ -180,7 +211,8 @@ class KernelLauncher(
       "-r",
       "ivy2Local",
       "-r",
-      "central",
+      "central"
+    ) ++ snapshotRepoArgs ++ Seq(
       "-r",
       "jitpack"
     )
@@ -188,13 +220,15 @@ class KernelLauncher(
       if (isTwoStepStartup)
         Seq(s"sh.almond:launcher_3:$almondVersion")
       else
+        // The kernel modules are published for binary Scala versions - "--scala" gives us the
+        // right ones, and the forced versions the Scala compiler of the version under test.
         Seq(
-          s"sh.almond:::scala-kernel:$almondVersion",
+          s"sh.almond::scala-kernel:$almondVersion",
           "--shared",
-          "sh.almond:::scala-kernel-api",
+          "sh.almond::scala-kernel-api",
           "--scala",
           defaultScalaVersion
-        )
+        ) ++ scalaForcedVersionArgs(defaultScalaVersion)
     val res = os.proc(
       cs,
       "bootstrap",
@@ -574,7 +608,8 @@ class KernelLauncher(
         val extraEnv = {
           val baseRepos = sys.env.getOrElse(
             "COURSIER_REPOSITORIES",
-            "ivy2Local|central"
+            if (useMavenSnapshots) s"ivy2Local|central|$mavenSnapshotsRepo"
+            else "ivy2Local|central"
           )
           Map(
             "COURSIER_REPOSITORIES" ->
