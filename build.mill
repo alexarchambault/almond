@@ -34,22 +34,49 @@ implicit def millModuleBasePath: ModuleCtx.Nested =
     this
   )
 
-trait LoggerScala2Macros extends Cross.Module[String] with AlmondModule {
+/** The Scala 2 macros of [[Logger]], that have to be compiled before it.
+  *
+  * Not published on its own - [[Logger]] ships its classes and sources alongside its own.
+  */
+trait LoggerScala2Macros extends Cross.Module[String] with AlmondUnpublishedModule
+    with AlmondJvmTarget {
   def crossScalaVersion = crossValue
   def mvnDeps = Task {
-    val sv = scalaVersion()
-    if (isScala3(sv)) Seq.empty[Dep] else Seq(Deps.scalaReflect(sv))
+    Seq(Deps.scalaReflect(scalaVersion()))
   }
 }
 
 trait Logger extends Cross.Module[String] with AlmondModule {
   def crossScalaVersion = crossValue
-  def moduleDeps =
-    if (isScala3(crossScalaVersion)) Seq.empty
-    else
-      Seq(
-        shared.`logger-scala2-macros`()
+
+  /** Our Scala 2 macros, that only exist for the Scala 2 binary versions */
+  private def macrosModuleOpt: Option[LoggerScala2Macros] =
+    if (isScala3(crossScalaVersion)) None
+    else Some(shared.`logger-scala2-macros`())
+
+  def compileModuleDeps = super.compileModuleDeps ++ macrosModuleOpt.toSeq
+
+  // The macros are only needed at compile time, and are of no use on their own - rather than
+  // publishing them separately, we add their classes to our local compile class path, which
+  // puts them both in our JAR and on the compile class path of the modules depending on us.
+  def localCompileClasspath = Task {
+    super.localCompileClasspath() ++
+      Task.traverse(macrosModuleOpt.toSeq)(_.compile)().map(_.classes)
+  }
+  // Ship the sources of the macros alongside ours too, for the classes above not to miss theirs
+  def sourceJar = Task {
+    val macroSources = Task.traverse(macrosModuleOpt.toSeq)(_.allSources)().flatten
+    PathRef(
+      mill.util.Jvm.createJar(
+        Task.dest / "out.jar",
+        (allSources() ++ macroSources ++ resources() ++ compileResources())
+          .map(_.path)
+          .filter(os.exists),
+        manifest()
       )
+    )
+  }
+
   def mvnDeps = Task {
     val sv = scalaVersion()
     val scalaReflect =
@@ -577,11 +604,6 @@ object `local-repo` extends Module {
         scala.`shared-directives`(sv)
       )
     }
-    val binary2Modules = ScalaVersions.scala2Binaries.flatMap { sv =>
-      Seq(
-        shared.`logger-scala2-macros`(sv)
-      )
-    }
     val kernelModules = ScalaVersions.binaries.flatMap { sv =>
       Seq(
         scala.`scala-kernel`(sv),
@@ -593,7 +615,7 @@ object `local-repo` extends Module {
       scala.launcher
     )
 
-    binaryModules ++ binary2Modules ++ kernelModules ++ simpleModules
+    binaryModules ++ kernelModules ++ simpleModules
   }
   def localRepo: T[PathRef] = {
     val allRepos = Task.sequence(allModules.map(_.publishLocalTestRepo))
