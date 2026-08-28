@@ -6,6 +6,9 @@ import mill.api.*
 import mill.javalib.publish.*
 import mill.scalalib.*
 
+import java.io.ByteArrayOutputStream
+import java.util.zip.ZipOutputStream
+
 trait AlmondPublishModule extends PublishModule with ScalaModule {
   import mill.scalalib.publish._
   def pomSettings = PomSettings(
@@ -33,6 +36,11 @@ trait AlmondPublishModule extends PublishModule with ScalaModule {
       else
         Seq("--release", "17")
     super.scalacOptions() ++ extraOptions
+  }
+
+  // We don't publish any documentation, publish empty doc JARs
+  def docJar: T[PathRef] = Task {
+    AlmondPublishModule.emptyZip()
   }
 }
 
@@ -65,6 +73,17 @@ object AlmondPublishModule extends ExternalModule {
   }
   def buildVersion: T[String] = Task.Input {
     computeBuildVersion()
+  }
+
+  /** An empty ZIP file, used as doc JAR by all published modules */
+  def emptyZip: T[PathRef] = Task {
+    val baos = new ByteArrayOutputStream
+    val zos  = new ZipOutputStream(baos)
+    zos.finish()
+    zos.close()
+    val dest = Task.dest / "empty.zip"
+    os.write(dest, baos.toByteArray)
+    PathRef(dest)
   }
 
   lazy val millDiscover: Discover = Discover[this.type]
