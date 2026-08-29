@@ -10,7 +10,7 @@ import mill.scalalib.*
   * Mixed in the modules whose class files we publish - either on their own, or, like
   * `logger-scala2-macros`, inside the JAR of another module.
   */
-trait AlmondJvmTarget extends ScalaModule {
+trait AlmondJvmTarget extends AlmondScalacOptions {
   def javacOptions = super.javacOptions() ++ Seq(
     "--release",
     "8"

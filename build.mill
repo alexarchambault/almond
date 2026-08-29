@@ -166,10 +166,12 @@ trait Kernel extends Cross.Module[String] with AlmondModule {
   }
 }
 
-trait Test extends Cross.Module[String] with AlmondUnpublishedModule {
-  def crossScalaVersion = crossValue
+// Only used by the tests of the echo kernel, that we only build for Scala 3
+trait Test extends SbtModule with AlmondRepositories with AlmondScalacOptions {
+  private def sv   = ScalaVersions.scala3Compat
+  def scalaVersion = sv
   def moduleDeps = Seq(
-    shared.`interpreter-api`()
+    shared.`interpreter-api`(sv)
   )
 }
 
@@ -542,7 +544,7 @@ object echo extends AlmondSimpleModule {
   def propertyFilePath = "almond/echo.properties"
   object test extends SbtTests with AlmondTestModule {
     def moduleDeps = super.moduleDeps ++ Seq(
-      shared.test(sv)
+      shared.test
     )
   }
 }
@@ -562,7 +564,7 @@ object shared extends Module {
   object `interpreter-api`      extends Cross[InterpreterApi](ScalaVersions.binaries)
   object interpreter            extends Cross[Interpreter](ScalaVersions.binaries)
   object kernel                 extends Cross[Kernel](ScalaVersions.binaries)
-  object test                   extends Cross[Test](ScalaVersions.binaries)
+  object test                   extends Test
   object `test-kit`             extends Cross[TestKit](ScalaVersions.all)
 }
 
