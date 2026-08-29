@@ -195,9 +195,8 @@ trait ScalaInterpreter extends Cross.Module[String] with AlmondModule {
   def crossScalaVersion = crossValue
   def moduleDeps = Seq(
     shared.kernel(),
-    scala.`coursier-logger`(),
+    scala.`kernel-helpers`(),
     scala.`scala-kernel-api`(),
-    scala.`shared-directives`(),
     scala.`toree-hooks`(ScalaVersions.binary(crossScalaVersion))
   )
   def mvnDeps = Task {
@@ -389,7 +388,10 @@ trait ScalaKernel extends Cross.Module[String] with AlmondModule with ExternalSo
   }
 }
 
-trait CoursierLogger extends Cross.Module[String] with AlmondModule {
+/** Helpers that both the Scala kernel and its launcher build upon, but that the kernel framework
+  * itself doesn't need.
+  */
+trait KernelHelpers extends Cross.Module[String] with AlmondModule {
   def crossScalaVersion = crossValue
   def moduleDeps = super.moduleDeps ++ Seq(
     shared.kernel()
@@ -397,15 +399,9 @@ trait CoursierLogger extends Cross.Module[String] with AlmondModule {
   def mvnDeps = super.mvnDeps() ++ Seq(
     Deps.collectionCompat,
     Deps.coursierApi,
-    Deps.scalatags
-  )
-}
-
-trait SharedDirectives extends Cross.Module[String] with AlmondModule {
-  def crossScalaVersion = crossValue
-  def mvnDeps = super.mvnDeps() ++ Seq(
     Deps.directiveHandler,
-    Deps.jsoniterScalaCore
+    Deps.jsoniterScalaCore,
+    Deps.scalatags
   )
   def compileMvnDeps = Seq(
     Deps.jsoniterScalaMacros
@@ -416,8 +412,7 @@ trait Launcher extends AlmondSimpleModule with BootstrapLauncher with PropertyFi
   private def sv   = ScalaVersions.scala3Latest
   def scalaVersion = sv
   def moduleDeps = Seq(
-    scala.`coursier-logger`(ScalaVersions.scala3Compat),
-    scala.`shared-directives`(ScalaVersions.scala3Compat),
+    scala.`kernel-helpers`(ScalaVersions.scala3Compat),
     shared.kernel(ScalaVersions.scala3Compat)
   )
   def mvnDeps = Seq(
@@ -520,8 +515,7 @@ object scala extends Module {
   object `scala-kernel-api`  extends Cross[ScalaKernelApi](ScalaVersions.binaries)
   object `scala-interpreter` extends Cross[ScalaInterpreter](ScalaVersions.binaries)
   object `scala-kernel`      extends Cross[ScalaKernel](ScalaVersions.binaries)
-  object `coursier-logger`   extends Cross[CoursierLogger](ScalaVersions.binaries)
-  object `shared-directives` extends Cross[SharedDirectives](ScalaVersions.binaries)
+  object `kernel-helpers`    extends Cross[KernelHelpers](ScalaVersions.binaries)
   object launcher            extends Launcher
   object `almond-scalapy`    extends Cross[AlmondScalaPy](ScalaVersions.binaries)
   object `almond-rx`         extends Cross[AlmondRx](ScalaVersions.scala2Binaries)
@@ -545,8 +539,7 @@ object `local-repo` extends Module {
         scala.`jupyter-api`(sv),
         scala.`toree-hooks`(sv),
         scala.`json-api-jackson`(sv),
-        scala.`coursier-logger`(sv),
-        scala.`shared-directives`(sv)
+        scala.`kernel-helpers`(sv)
       )
     }
     val kernelModules = ScalaVersions.binaries.flatMap { sv =>
