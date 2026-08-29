@@ -166,7 +166,7 @@ trait Kernel extends Cross.Module[String] with AlmondModule {
   }
 }
 
-trait Test extends Cross.Module[String] with AlmondModule {
+trait Test extends Cross.Module[String] with AlmondUnpublishedModule {
   def crossScalaVersion = crossValue
   def moduleDeps = Seq(
     shared.`interpreter-api`()
