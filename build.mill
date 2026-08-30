@@ -46,15 +46,34 @@ trait LoggerScala2Macros extends Cross.Module[String] with AlmondUnpublishedModu
   }
 }
 
-trait InterpreterApi extends Cross.Module[String] with AlmondModule with AlmondMima {
+/** The API user code is written against - `almond.interpreter.api` for the kernels, and
+  * `almond.api` / `almond.display` / `almond.input` for the users of the Scala kernel.
+  */
+trait Api extends Cross.Module[String] with AlmondModule with AlmondMima {
   def crossScalaVersion = crossValue
+  def mvnDeps = Seq(
+    Deps.jvmRepr
+  )
 
   def mimaBinaryIssueFilters = Seq(
-    // abstract class not meant to be implemented by users
+    // abstract classes not meant to be implemented by users
     ProblemFilter.exclude[ReversedMissingMethodProblem](
       "almond.interpreter.api.OutputHandler.*"
-    )
+    ),
+    ProblemFilter.exclude[ReversedMissingMethodProblem]("almond.api.JupyterApi.*")
   )
+
+  // Our classes used to be published as two modules, interpreter-api and jupyter-api -
+  // keep checking them against those, our own name has no release to be compared with yet.
+  def mimaPreviousArtifacts = Task {
+    val versions = mimaPreviousVersions().distinct
+    mill.api.Result.Success(
+      for {
+        name    <- Seq("interpreter-api", "jupyter-api")
+        version <- versions
+      } yield mvn"${pomSettings().organization}:$name${artifactSuffix()}:$version"
+    )
+  }
 }
 
 trait Kernel extends Cross.Module[String] with AlmondModule {
@@ -66,7 +85,7 @@ trait Kernel extends Cross.Module[String] with AlmondModule {
     else Some(shared.`logger-scala2-macros`())
 
   def moduleDeps = Seq(
-    shared.`interpreter-api`()
+    api()
   )
   def compileModuleDeps = super.compileModuleDeps ++ macrosModuleOpt.toSeq
 
@@ -123,22 +142,7 @@ trait Test extends SbtModule with AlmondRepositories with AlmondScalacOptions {
   private def sv   = ScalaVersions.scala3Compat
   def scalaVersion = sv
   def moduleDeps = Seq(
-    shared.`interpreter-api`(sv)
-  )
-}
-
-trait JupyterApi extends Cross.Module[String] with AlmondModule with AlmondMima {
-  def crossScalaVersion = crossValue
-  def moduleDeps = Seq(
-    shared.`interpreter-api`()
-  )
-  def mvnDeps = Seq(
-    Deps.jvmRepr
-  )
-
-  def mimaBinaryIssueFilters = Seq(
-    // abstract class not meant to be implemented by users
-    ProblemFilter.exclude[ReversedMissingMethodProblem]("almond.api.JupyterApi.*")
+    api(sv)
   )
 }
 
@@ -146,8 +150,7 @@ trait ScalaKernelApi extends Cross.Module[String] with AlmondModule with Depende
     with ExternalSources with PropertyFile with AlmondMima {
   def crossScalaVersion = crossValue
   def moduleDeps = Seq(
-    shared.`interpreter-api`(),
-    scala.`jupyter-api`()
+    api()
   )
   def mvnDeps = Seq(
     Deps.ammoniteCompiler.exclude(("org.slf4j", "slf4j-api")),
@@ -196,8 +199,7 @@ trait ScalaInterpreter extends Cross.Module[String] with AlmondModule {
   def moduleDeps = Seq(
     shared.kernel(),
     scala.`kernel-helpers`(),
-    scala.`scala-kernel-api`(),
-    scala.`toree-hooks`(ScalaVersions.binary(crossScalaVersion))
+    scala.`scala-kernel-api`()
   )
   def mvnDeps = Task {
     val metabrowse =
@@ -451,7 +453,8 @@ trait AlmondScalaPy extends Cross.Module[String] with AlmondModule with AlmondMi
   )
 }
 
-trait AlmondRx extends Cross.Module[String] with AlmondModule with AlmondMima {
+/** Not published any more - only kept around to be built and tested here */
+trait AlmondRx extends Cross.Module[String] with AlmondUnpublishedModule {
   def crossScalaVersion = crossValue
   def compileModuleDeps = Seq(
     scala.`scala-kernel-api`()
@@ -464,7 +467,7 @@ trait AlmondRx extends Cross.Module[String] with AlmondModule with AlmondMima {
 trait JsonApiJackson extends Cross.Module[String] with AlmondModule with AlmondMima {
   def crossScalaVersion = crossValue
   def moduleDeps = Seq(
-    scala.`jupyter-api`()
+    api()
   )
   def mvnDeps = Seq(
     mvn"com.fasterxml.jackson.module::jackson-module-scala:2.22.2"
@@ -495,23 +498,16 @@ object echo extends AlmondSimpleModule {
   }
 }
 
-trait ToreeHooks extends Cross.Module[String] with AlmondModule {
-  def crossScalaVersion = crossValue
-  def compileModuleDeps = super.compileModuleDeps ++ Seq(
-    scala.`scala-kernel-api`(ScalaVersions.binary(crossScalaVersion))
-  )
-}
+object api extends Cross[Api](ScalaVersions.binaries)
 
 object shared extends Module {
   object `logger-scala2-macros` extends Cross[LoggerScala2Macros](ScalaVersions.scala2Binaries)
-  object `interpreter-api`      extends Cross[InterpreterApi](ScalaVersions.binaries)
   object kernel                 extends Cross[Kernel](ScalaVersions.binaries)
   object test                   extends Test
   object `test-kit`             extends Cross[TestKit](ScalaVersions.all)
 }
 
 object scala extends Module {
-  object `jupyter-api`       extends Cross[JupyterApi](ScalaVersions.binaries)
   object `scala-kernel-api`  extends Cross[ScalaKernelApi](ScalaVersions.binaries)
   object `scala-interpreter` extends Cross[ScalaInterpreter](ScalaVersions.binaries)
   object `scala-kernel`      extends Cross[ScalaKernel](ScalaVersions.binaries)
@@ -520,8 +516,6 @@ object scala extends Module {
   object `almond-scalapy`    extends Cross[AlmondScalaPy](ScalaVersions.binaries)
   object `almond-rx`         extends Cross[AlmondRx](ScalaVersions.scala2Binaries)
   object `json-api-jackson`  extends Cross[JsonApiJackson](ScalaVersions.binaries)
-
-  object `toree-hooks` extends Cross[ToreeHooks](ScalaVersions.binaries)
 
   object `test-definitions` extends Cross[TestDefinitions](ScalaVersions.all)
   object integration        extends Integration
@@ -535,9 +529,7 @@ object `local-repo` extends Module {
       Seq(
         scala.`almond-scalapy`(sv),
         shared.kernel(sv),
-        shared.`interpreter-api`(sv),
-        scala.`jupyter-api`(sv),
-        scala.`toree-hooks`(sv),
+        api(sv),
         scala.`json-api-jackson`(sv),
         scala.`kernel-helpers`(sv)
       )

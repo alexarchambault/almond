@@ -128,7 +128,7 @@ object AmmInterpreter {
             }
           if (clsOpt.isEmpty)
             log.error(
-              "Ignoring Toree API compatibility option, as sh.almond::toree-hooks isn't part of the user class path"
+              "Ignoring Toree API compatibility option, as sh.almond::scala-kernel-api isn't part of the user class path"
             )
           clsOpt.nonEmpty
         }
