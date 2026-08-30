@@ -1,12 +1,14 @@
 package almondbuild.modules
 
-import coursier.version.Version
 import mill.*
 import mill.api.*
 import mill.javalib.publish.*
 import mill.scalalib.*
 
-trait AlmondPublishModule extends PublishModule with ScalaModule {
+import java.io.ByteArrayOutputStream
+import java.util.zip.ZipOutputStream
+
+trait AlmondPublishModule extends PublishModule with ScalaModule with AlmondJvmTarget {
   import mill.scalalib.publish._
   def pomSettings = PomSettings(
     description = artifactName(),
@@ -19,20 +21,10 @@ trait AlmondPublishModule extends PublishModule with ScalaModule {
     )
   )
   def publishVersion = Task(AlmondPublishModule.buildVersion())
-  def javacOptions = super.javacOptions() ++ Seq(
-    "--release",
-    "8"
-  )
-  def scalacOptions = Task {
-    val sv = Version(scalaVersion())
-    val extraOptions =
-      if (sv >= Version("2.12.0") && sv <= Version("2.12.18"))
-        Seq("-target:8")
-      else if (sv < Version("3.8.0"))
-        Seq("--release", "8")
-      else
-        Seq("--release", "17")
-    super.scalacOptions() ++ extraOptions
+
+  // We don't publish any documentation, publish empty doc JARs
+  def docJar: T[PathRef] = Task {
+    AlmondPublishModule.emptyZip()
   }
 }
 
@@ -65,6 +57,17 @@ object AlmondPublishModule extends ExternalModule {
   }
   def buildVersion: T[String] = Task.Input {
     computeBuildVersion()
+  }
+
+  /** An empty ZIP file, used as doc JAR by all published modules */
+  def emptyZip: T[PathRef] = Task {
+    val baos = new ByteArrayOutputStream
+    val zos  = new ZipOutputStream(baos)
+    zos.finish()
+    zos.close()
+    val dest = Task.dest / "empty.zip"
+    os.write(dest, baos.toByteArray)
+    PathRef(dest)
   }
 
   lazy val millDiscover: Discover = Discover[this.type]
