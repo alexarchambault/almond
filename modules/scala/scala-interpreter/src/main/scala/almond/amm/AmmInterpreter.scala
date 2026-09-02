@@ -255,7 +255,7 @@ object AmmInterpreter {
       }
 
       // TODO: remove jitpack once jvm-repr is published to central
-      val allExtraRepos = extraRepos ++ Seq(coursier.Repositories.jitpack.root)
+      val allExtraRepos = extraRepos ++ Seq("https://jitpack.io")
       ammInterp0.repositories() = ammInterp0.repositories() ++
         allExtraRepos.map { r =>
           if (r.startsWith("ivy:"))
