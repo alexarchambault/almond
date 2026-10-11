@@ -4,8 +4,6 @@ import coursier.jvm.{JavaHome, JvmCache}
 
 import java.io.File
 
-import mill.api.PathRef
-
 object JavaHomes {
 
   /** Java home for the passed JVM id (like "21", or "temurin:21"), relying on the JVM management
@@ -26,12 +24,9 @@ object JavaHomes {
     // "Path": look the current value up ignoring case, and keep the existing spelling.
     val pathKey     = sys.env.keys.find(_.equalsIgnoreCase("PATH")).getOrElse("PATH")
     val currentPath = sys.env.get(pathKey).filter(_.nonEmpty).toSeq
-    // Absolute paths: from a Mill task, `os.Path#toString` gives paths under the workspace
-    // relative to the task sandbox, which subprocesses run from elsewhere can't resolve.
-    val newPath =
-      (PathRef.toResolvedPathString(javaHome / "bin") +: currentPath).mkString(File.pathSeparator)
+    val newPath = ((javaHome / "bin").toString +: currentPath).mkString(File.pathSeparator)
     Map(
-      "JAVA_HOME" -> PathRef.toResolvedPathString(javaHome),
+      "JAVA_HOME" -> javaHome.toString,
       pathKey     -> newPath
     )
   }
